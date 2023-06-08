@@ -50,7 +50,7 @@ typedef void (*app_fn)( void );
 void jump2app( uint32_t app_bin_addr )
 {
     __disable_irq();
-    app_fn app = *(__IO  uint32_t*) (app_bin_addr + 4);
+    app_fn app = (app_fn)(*(__IO  uint32_t*) (app_bin_addr + 4));
     //取app_bin_addr所在地址的第一个uint32_t为主堆栈指针寄存器的值
     __set_MSP( *(__IO uint32_t*)(app_bin_addr) );
     //jump
