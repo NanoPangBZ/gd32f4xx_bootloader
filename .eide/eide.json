@@ -1,0 +1,86 @@
+{
+  "name": "gd32f4_bootloader",
+  "type": "ARM",
+  "dependenceList": [],
+  "srcDirs": [
+    ".eide/deps",
+    "USER",
+    "CMSIS",
+    "GD32F4xx_standard_peripheral",
+    "StartCode"
+  ],
+  "virtualFolder": {
+    "name": "<virtual_root>",
+    "files": [],
+    "folders": [
+      {
+        "name": "link_script",
+        "files": [
+          {
+            "path": "STM32F103RCTx_FLASH.ld"
+          }
+        ],
+        "folders": []
+      }
+    ]
+  },
+  "outDir": "build",
+  "deviceName": null,
+  "packDir": null,
+  "miscInfo": {
+    "uid": "41de4546d03c6bbb46ceb7cd6d2080df"
+  },
+  "targets": {
+    "Debug": {
+      "excludeList": [],
+      "toolchain": "GCC",
+      "compileConfig": {
+        "cpuType": "Cortex-M4",
+        "floatingPointHardware": "single",
+        "scatterFilePath": "STM32F103RCTx_FLASH.ld",
+        "useCustomScatterFile": true,
+        "storageLayout": {
+          "RAM": [],
+          "ROM": []
+        },
+        "options": "null"
+      },
+      "uploader": "OpenOCD",
+      "uploadConfig": {
+        "bin": "",
+        "target": "stm32f4x",
+        "interface": "cmsis-dap",
+        "baseAddr": "0x08000000"
+      },
+      "uploadConfigMap": {
+        "JLink": {
+          "bin": "",
+          "baseAddr": "",
+          "cpuInfo": {
+            "vendor": "null",
+            "cpuName": "null"
+          },
+          "proType": 1,
+          "speed": 8000,
+          "otherCmds": ""
+        }
+      },
+      "custom_dep": {
+        "name": "default",
+        "incList": [
+          ".eide/deps",
+          "USER",
+          "GD32F4xx_standard_peripheral/Include",
+          "CMSIS",
+          "CMSIS/GD/GD32F4xx/Include"
+        ],
+        "libList": [],
+        "sourceDirList": [],
+        "defineList": [
+          "GD32F427"
+        ]
+      }
+    }
+  },
+  "version": "3.3"
+}
