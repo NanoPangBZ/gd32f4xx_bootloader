@@ -7,7 +7,8 @@
     "USER",
     "CMSIS",
     "GD32F4xx_standard_peripheral",
-    "StartCode"
+    "StartCode",
+    "GD32F4xx_usb_library"
   ],
   "virtualFolder": {
     "name": "<virtual_root>",
@@ -32,7 +33,17 @@
   },
   "targets": {
     "Debug": {
-      "excludeList": [],
+      "excludeList": [
+        "GD32F4xx_usb_library/device/class/audio",
+        "GD32F4xx_usb_library/device/class/dfu",
+        "GD32F4xx_usb_library/device/class/hid",
+        "GD32F4xx_usb_library/device/class/printer",
+        "GD32F4xx_usb_library/device/class/iap",
+        "GD32F4xx_usb_library/host",
+        "GD32F4xx_usb_library/device/class/msc",
+        "GD32F4xx_usb_library/driver/Source/drv_usbh_int.c",
+        "GD32F4xx_usb_library/driver/Source/drv_usb_host.c"
+      ],
       "toolchain": "GCC",
       "compileConfig": {
         "cpuType": "Cortex-M4",
@@ -72,12 +83,18 @@
           "USER",
           "GD32F4xx_standard_peripheral/Include",
           "CMSIS",
-          "CMSIS/GD/GD32F4xx/Include"
+          "CMSIS/GD/GD32F4xx/Include",
+          "GD32F4xx_usb_library/driver/Include",
+          "GD32F4xx_usb_library/device/core/Include",
+          "GD32F4xx_usb_library/device/class/cdc/Include",
+          "GD32F4xx_usb_library/ustd/common",
+          "GD32F4xx_usb_library/ustd/class/cdc"
         ],
         "libList": [],
         "sourceDirList": [],
         "defineList": [
-          "GD32F427"
+          "GD32F427",
+          "USE_USB_FS"
         ]
       }
     }
