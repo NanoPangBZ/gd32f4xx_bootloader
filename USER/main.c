@@ -1,7 +1,7 @@
 #include "gd32f4xx.h"
 #include "systick.h"
 #include <stdio.h>
-
+#include "drv_usb_hw.h"
 #include "cdc_acm_core.h"
 
 usb_core_driver cdc_acm;
@@ -19,6 +19,10 @@ void jump2app( uint32_t app_bin_addr )
 
 void usb_init( void )
 {
+    usb_gpio_config();
+    usb_rcu_config();
+    usb_timer_init();
+
     usbd_init (&cdc_acm,
 #ifdef USE_USB_FS
               USB_CORE_ENUM_FS,
@@ -27,6 +31,9 @@ void usb_init( void )
 #endif /* USE_USB_FS */
               &cdc_desc,
               &cdc_class);
+
+    usb_intr_config();
+    
 }
 
 int main(void)
@@ -41,24 +48,38 @@ int main(void)
     gpio_mode_set(GPIOC, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_6);
     gpio_output_options_set(GPIOC, GPIO_OTYPE_PP, GPIO_OSPEED_50MHZ, GPIO_PIN_6);
     /* reset LED2 GPIO pin */
-    gpio_bit_reset(GPIOC, GPIO_PIN_6);
 
-    uint8_t cnt = 0;
 
-    while(1) {
-        /* turn on LED2 */
-        gpio_bit_set(GPIOC, GPIO_PIN_6);
-        delay_1ms(1000);
 
-        /* turn off LED2 */
-        gpio_bit_reset(GPIOC, GPIO_PIN_6);
-        delay_1ms(1000);
-
-        cnt++;
-
-        if( cnt > 5 )
+    while (1)
+    {
+        if (USBD_CONFIGURED == cdc_acm.dev.cur_status)
         {
-            jump2app(0x8080000);
+            if (0U == cdc_acm_check_ready(&cdc_acm)) {
+                cdc_acm_data_receive(&cdc_acm);
+            } else {
+                cdc_acm_data_send(&cdc_acm);
+            }
+            gpio_bit_set(GPIOC, GPIO_PIN_6);
         }
     }
+
+    // uint8_t cnt = 0;
+
+    // while(1) {
+    //     /* turn on LED2 */
+    //     gpio_bit_set(GPIOC, GPIO_PIN_6);
+    //     delay_1ms(1000);
+
+    //     /* turn off LED2 */
+    //     gpio_bit_reset(GPIOC, GPIO_PIN_6);
+    //     delay_1ms(1000);
+
+    //     cnt++;
+
+    //     if( cnt > 5 )
+    //     {
+    //         jump2app(0x8080000);
+    //     }
+    // }
 }

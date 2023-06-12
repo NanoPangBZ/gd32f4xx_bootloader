@@ -33,7 +33,15 @@ OF SUCH DAMAGE.
 */
 
 #include "gd32f4xx_it.h"
+#include "drv_usbd_int.h"
+#include "drv_usb_hw.h"
 #include "systick.h"
+
+/* local function prototypes ('static') */
+static void resume_mcu_clk(void);
+
+extern usb_core_driver cdc_acm;
+void usb_timer_irq (void);
 
 /*!
     \brief      this function handles NMI exception
@@ -137,3 +145,78 @@ void SysTick_Handler(void)
 {
     delay_decrement();
 }
+
+/*!
+    \brief      this function handles timer2 interrupt Handler
+    \param[in]  none
+    \param[out] none
+    \retval     none
+*/
+void TIMER2_IRQHandler(void)
+{
+    usb_timer_irq();
+}
+
+/*!
+    \brief      this function handles USBFS wakeup interrupt handler
+    \param[in]  none
+    \param[out] none
+    \retval     none
+*/
+void USBFS_WKUP_IRQHandler(void)
+{
+    if (cdc_acm.bp.low_power) {
+        resume_mcu_clk();
+
+        rcu_pll48m_clock_config(RCU_PLL48MSRC_PLLQ);
+        rcu_ck48m_clock_config(RCU_CK48MSRC_PLL48M);
+
+        rcu_periph_clock_enable(RCU_USBFS);
+
+        usb_clock_active(&cdc_acm);
+    }
+
+    exti_interrupt_flag_clear(EXTI_18);
+}
+
+/*!
+    \brief      this function handles USBFS IRQ Handler
+    \param[in]  none
+    \param[out] none
+    \retval     none
+*/
+void USBFS_IRQHandler(void)
+{
+    usbd_isr(&cdc_acm);
+}
+
+/*!
+    \brief      resume mcu clock
+    \param[in]  none
+    \param[out] none
+    \retval     none
+*/
+static void resume_mcu_clk(void)
+{
+    /* enable HXTAL */
+    rcu_osci_on(RCU_HXTAL);
+
+    /* wait till HXTAL is ready */
+    while(RESET == rcu_flag_get(RCU_FLAG_HXTALSTB)){
+    }
+
+    /* enable PLL */
+    rcu_osci_on(RCU_PLL_CK);
+
+    /* wait till PLL is ready */
+    while(RESET == rcu_flag_get(RCU_FLAG_PLLSTB)){
+    }
+
+    /* select PLL as system clock source */
+    rcu_system_clock_source_config(RCU_CKSYSSRC_PLLP);
+
+    /* wait till PLL is used as system clock source */
+    while(RCU_SCSS_PLLP != rcu_system_clock_source_get()){
+    }
+}
+
