@@ -49,7 +49,7 @@ int main(void)
     gpio_output_options_set(GPIOC, GPIO_OTYPE_PP, GPIO_OSPEED_50MHZ, GPIO_PIN_6);
     /* reset LED2 GPIO pin */
 
-
+    usb_init();
 
     while (1)
     {

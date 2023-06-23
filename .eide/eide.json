@@ -18,7 +18,16 @@
         "name": "link_script",
         "files": [
           {
-            "path": "STM32F103RCTx_FLASH.ld"
+            "path": "GD32F4xx.ld"
+          }
+        ],
+        "folders": []
+      },
+      {
+        "name": "MakeFile",
+        "files": [
+          {
+            "path": "Makefile"
           }
         ],
         "folders": []
@@ -48,7 +57,7 @@
       "compileConfig": {
         "cpuType": "Cortex-M4",
         "floatingPointHardware": "single",
-        "scatterFilePath": "STM32F103RCTx_FLASH.ld",
+        "scatterFilePath": "GD32F4xx.ld",
         "useCustomScatterFile": true,
         "storageLayout": {
           "RAM": [],
