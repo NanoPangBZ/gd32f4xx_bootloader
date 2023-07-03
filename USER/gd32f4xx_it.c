@@ -165,18 +165,18 @@ void TIMER2_IRQHandler(void)
 */
 void USBFS_WKUP_IRQHandler(void)
 {
-    if (cdc_acm.bp.low_power) {
-        resume_mcu_clk();
+    // if (cdc_acm.bp.low_power) {
+    //     resume_mcu_clk();
 
-        rcu_pll48m_clock_config(RCU_PLL48MSRC_PLLQ);
-        rcu_ck48m_clock_config(RCU_CK48MSRC_PLL48M);
+    //     rcu_pll48m_clock_config(RCU_PLL48MSRC_PLLQ);
+    //     rcu_ck48m_clock_config(RCU_CK48MSRC_PLL48M);
 
-        rcu_periph_clock_enable(RCU_USBFS);
+    //     rcu_periph_clock_enable(RCU_USBFS);
 
-        usb_clock_active(&cdc_acm);
-    }
+    //     usb_clock_active(&cdc_acm);
+    // }
 
-    exti_interrupt_flag_clear(EXTI_18);
+    // exti_interrupt_flag_clear(EXTI_18);
 }
 
 /*!
@@ -187,7 +187,7 @@ void USBFS_WKUP_IRQHandler(void)
 */
 void USBFS_IRQHandler(void)
 {
-    usbd_isr(&cdc_acm);
+    // usbd_isr(&cdc_acm);
 }
 
 /*!

@@ -1,85 +1,155 @@
 #include "gd32f4xx.h"
-#include "systick.h"
 #include <stdio.h>
-#include "drv_usb_hw.h"
-#include "cdc_acm_core.h"
 
-usb_core_driver cdc_acm;
+#define TIMER0_CH0CV  ((uint32_t)0x040010034)
+uint16_t buffer[5]={800,400,200,100,0};
 
-void jump2app( uint32_t app_bin_addr )
+void gpio_config(void);
+void timer_config(void);
+void dma_config(void);
+
+void DMA1_Channel5_IRQHandler()
 {
-    typedef void (*app_fn)( void );
-    __disable_irq();
-    app_fn app = (app_fn)(*(__IO  uint32_t*) (app_bin_addr + 4));
-    //取app_bin_addr所在地址的第一个uint32_t为主堆栈指针寄存器的值
-    __set_MSP( *(__IO uint32_t*)(app_bin_addr) );
-    //jump
-    app();
+    if( dma_interrupt_flag_get( DMA1 , DMA_CH5 , DMA_INT_FLAG_FTF ) == SET )
+    {
+        dma_channel_disable( DMA1 , DMA_CH5 );
+        timer_dma_disable(TIMER0,TIMER_DMA_UPD);
+        timer_channel_output_pulse_value_config(TIMER0,TIMER_CH_0,0);
+        dma_interrupt_flag_clear(DMA1, DMA_CH5, DMA_INT_FLAG_FTF);
+    }
 }
 
-void usb_init( void )
+/*!
+    \brief      configure the GPIO ports
+    \param[in]  none
+    \param[out] none
+    \retval     none
+*/
+void gpio_config(void)
 {
-    usb_gpio_config();
-    usb_rcu_config();
-    usb_timer_init();
+    rcu_periph_clock_enable(RCU_GPIOA);
 
-    usbd_init (&cdc_acm,
-#ifdef USE_USB_FS
-              USB_CORE_ENUM_FS,
-#elif defined(USE_USB_HS)
-              USB_CORE_ENUM_HS,
-#endif /* USE_USB_FS */
-              &cdc_desc,
-              &cdc_class);
+    /*configure PA8(TIMER0 CH0) as alternate function*/
+    gpio_mode_set(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO_PIN_8);
+    gpio_output_options_set(GPIOA, GPIO_OTYPE_PP, GPIO_OSPEED_50MHZ,GPIO_PIN_8);
 
-    usb_intr_config();
-    
+    gpio_af_set(GPIOA, GPIO_AF_1, GPIO_PIN_8);
 }
 
+/*!
+    \brief      configure the DMA peripheral
+    \param[in]  none
+    \param[out] none
+    \retval     none
+*/
+void dma_config(void)
+{
+    dma_single_data_parameter_struct dma_init_struct;
+
+    /* enable DMA clock */
+    rcu_periph_clock_enable(RCU_DMA1);
+
+    /* initialize DMA channel5 */
+    dma_deinit(DMA1,DMA_CH5);
+	
+    /* DMA channel5 initialize */
+    dma_init_struct.periph_addr = (uint32_t)TIMER0_CH0CV;
+    dma_init_struct.periph_inc = DMA_PERIPH_INCREASE_DISABLE;
+    dma_init_struct.memory0_addr = (uint32_t)buffer;
+    dma_init_struct.memory_inc = DMA_MEMORY_INCREASE_ENABLE;
+    dma_init_struct.periph_memory_width = DMA_PERIPH_WIDTH_16BIT;
+    dma_init_struct.circular_mode = DMA_CIRCULAR_MODE_DISABLE;
+    dma_init_struct.direction = DMA_MEMORY_TO_PERIPH;
+    dma_init_struct.number = 5;
+    dma_init_struct.priority = DMA_PRIORITY_ULTRA_HIGH;
+    dma_single_data_mode_init(DMA1,DMA_CH5,&dma_init_struct);
+    dma_channel_subperipheral_select(DMA1,DMA_CH5,DMA_SUBPERI6);
+
+    dma_interrupt_enable( DMA1 , DMA_CH5 , DMA_CHXCTL_FTFIE );
+    dma_interrupt_disable( DMA1 , DMA_CH5 , DMA_CHXCTL_SDEIE );
+    dma_interrupt_disable( DMA1 , DMA_CH5 , DMA_CHXCTL_TAEIE );
+    dma_interrupt_disable( DMA1 , DMA_CH5 , DMA_CHXCTL_HTFIE );
+    dma_interrupt_disable( DMA1 , DMA_CH5 , DMA_CHXFCTL_FEEIE );
+    nvic_irq_enable( DMA1_Channel5_IRQn , 0, 0);
+
+    /* enable DMA channel5 */
+    dma_channel_enable(DMA1,DMA_CH5);	
+}
+
+/*!
+    \brief      configure the TIMER peripheral
+    \param[in]  none
+    \param[out] none
+    \retval     none
+*/
+void timer_config(void)
+{
+    /* TIMER0 DMA Transfer example -------------------------------------------------
+    TIMER0CLK = 120MHz, Prescaler = 120 
+    TIMER0 counter clock = systemcoreclock/120 = 1MHz.
+
+    the objective is to configure TIMER0 channel 1 to generate PWM
+    signal with a frequency equal to 1KHz and a variable duty cycle(25%,50%,75%) that is 
+    changed by the DMA after a specific number of update DMA request.
+
+    the number of this repetitive requests is defined by the TIMER0 repetition counter,
+    each 2 update requests, the TIMER0 Channel 0 duty cycle changes to the next new 
+    value defined by the buffer . 
+    -----------------------------------------------------------------------------*/
+    timer_oc_parameter_struct timer_ocintpara;
+    timer_parameter_struct timer_initpara;
+
+    rcu_periph_clock_enable(RCU_TIMER0);
+    rcu_timer_clock_prescaler_config(RCU_TIMER_PSC_MUL4);
+
+    timer_deinit(TIMER0);
+
+    /* TIMER0 configuration */
+    timer_initpara.prescaler         = 199;
+    timer_initpara.alignedmode       = TIMER_COUNTER_EDGE;
+    timer_initpara.counterdirection  = TIMER_COUNTER_UP;
+    timer_initpara.period            = 999;
+    timer_initpara.clockdivision     = TIMER_CKDIV_DIV1;
+    timer_initpara.repetitioncounter = 0;
+    timer_init(TIMER0,&timer_initpara);
+
+    /* CH0 configuration in PWM1 mode */
+    timer_ocintpara.outputstate  = TIMER_CCX_ENABLE;
+    timer_ocintpara.outputnstate = TIMER_CCXN_DISABLE;
+    timer_ocintpara.ocpolarity   = TIMER_OC_POLARITY_HIGH;
+    timer_ocintpara.ocnpolarity  = TIMER_OCN_POLARITY_HIGH;
+    timer_ocintpara.ocidlestate  = TIMER_OC_IDLE_STATE_HIGH;
+    timer_ocintpara.ocnidlestate = TIMER_OCN_IDLE_STATE_LOW;
+    timer_channel_output_config(TIMER0,TIMER_CH_0,&timer_ocintpara);
+
+    timer_channel_output_pulse_value_config(TIMER0,TIMER_CH_0,0);
+    timer_channel_output_mode_config(TIMER0,TIMER_CH_0,TIMER_OC_MODE_PWM0);
+    timer_channel_output_shadow_config(TIMER0,TIMER_CH_0,TIMER_OC_SHADOW_DISABLE);
+
+    /* TIMER0 primary output enable */
+    timer_primary_output_config(TIMER0,ENABLE);
+
+    /* TIMER0 update DMA request enable */
+    timer_dma_enable(TIMER0,TIMER_DMA_UPD);
+
+    /* auto-reload preload enable */
+    timer_auto_reload_shadow_enable(TIMER0);
+
+    /* TIMER0 counter enable */
+    timer_enable(TIMER0);
+}
+
+/*!
+    \brief      main function
+    \param[in]  none
+    \param[out] none
+    \retval     none
+*/
 int main(void)
 {
-    /* configure systick */
-    systick_config();
+    gpio_config(); 
+    dma_config();
+    timer_config();
 
-    /* enable the LEDs GPIO clock */
-    rcu_periph_clock_enable(RCU_GPIOC);
-
-    /* configure LED2 GPIO port */
-    gpio_mode_set(GPIOC, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_6);
-    gpio_output_options_set(GPIOC, GPIO_OTYPE_PP, GPIO_OSPEED_50MHZ, GPIO_PIN_6);
-    /* reset LED2 GPIO pin */
-
-    usb_init();
-
-    while (1)
-    {
-        if (USBD_CONFIGURED == cdc_acm.dev.cur_status)
-        {
-            if (0U == cdc_acm_check_ready(&cdc_acm)) {
-                cdc_acm_data_receive(&cdc_acm);
-            } else {
-                cdc_acm_data_send(&cdc_acm);
-            }
-            gpio_bit_set(GPIOC, GPIO_PIN_6);
-        }
-    }
-
-    // uint8_t cnt = 0;
-
-    // while(1) {
-    //     /* turn on LED2 */
-    //     gpio_bit_set(GPIOC, GPIO_PIN_6);
-    //     delay_1ms(1000);
-
-    //     /* turn off LED2 */
-    //     gpio_bit_reset(GPIOC, GPIO_PIN_6);
-    //     delay_1ms(1000);
-
-    //     cnt++;
-
-    //     if( cnt > 5 )
-    //     {
-    //         jump2app(0x8080000);
-    //     }
-    // }
+    while (1);
 }
